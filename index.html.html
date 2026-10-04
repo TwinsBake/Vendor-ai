@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2e2824">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Vendor AI</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#faf7f3;color:#2e2824;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Arial,sans-serif}
+main{max-width:760px;margin:auto;padding:20px 16px 48px}
+header{padding:8px 2px 18px}h1{font-size:32px;margin:0}.tag{color:#766e67;margin-top:5px}
+.card{background:#fff;border:1px solid #e5dbd0;border-radius:20px;padding:18px;margin:12px 0;box-shadow:0 4px 16px #00000008}
+h2{font-size:18px;margin:0 0 14px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:12px;font-weight:800;color:#625b55;margin-bottom:6px}
+input{width:100%;padding:13px;border:1px solid #d8cec4;border-radius:12px;font-size:17px;background:#fff;color:#2e2824}
+button{width:100%;border:0;border-radius:13px;padding:14px;font-size:16px;font-weight:800}
+.add{background:#eee4d9}.analyze{background:#2e2824;color:#fff;font-size:18px}
+.product{border:1px solid #e5dbd0;border-radius:15px;padding:13px;margin:10px 0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.remove{width:auto;padding:7px 10px;font-size:12px;background:#f7e7e5;color:#93453e}
+.pgrid{display:grid;grid-template-columns:1.5fr .7fr .9fr .9fr;gap:8px}.pgrid input{font-size:15px;padding:11px}
+.result{display:none}.result.show{display:block}
+.verdict{text-align:center;padding:15px;border-radius:15px;font-size:20px;font-weight:900;margin-bottom:12px}
+.green{background:#e5f3e7;color:#28613a}.yellow{background:#fff2d4;color:#8a641d}.red{background:#f8e2e0;color:#963f38}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kpi{background:#faf7f3;padding:13px;border-radius:14px}
+.kpi small{color:#766e67}.kpi strong{display:block;font-size:20px;margin-top:4px}
+.note{color:#766e67;font-size:14px;line-height:1.5}
+.scenario{margin-top:14px;border-top:1px solid #e5dbd0;padding-top:14px}
+.scenario-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee6de;font-size:14px}
+.scenario-row:last-child{border-bottom:0}.scenario-row strong{font-size:15px}
+.badtext{color:#963f38}.goodtext{color:#28613a}
+.footer{font-size:12px;color:#766e67;margin-top:18px}
+@media(max-width:520px){.pgrid{grid-template-columns:1.4fr .65fr .85fr .85fr}.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Vendor AI</h1><div class="tag">Tu gerente virtual para eventos y ventas.</div></header>
+
+<section class="card">
+<h2>📍 Nuevo evento</h2>
+<div class="grid">
+<div><label>Nombre</label><input id="name" placeholder="Car Show"></div>
+<div><label>Fecha</label><input id="date" type="date"></div>
+<div><label>Fee ($)</label><input id="fee" type="number" inputmode="decimal" value="0"></div>
+<div><label>Gasolina ($)</label><input id="gas" type="number" inputmode="decimal" value="0"></div>
+<div><label>Otros gastos ($)</label><input id="other" type="number" inputmode="decimal" value="0"></div>
+<div><label>Ventas esperadas ($)</label><input id="sales" type="number" inputmode="decimal" value="0"></div>
+</div>
+</section>
+
+<section class="card">
+<h2>🛍️ Productos</h2>
+<div id="products"></div>
+<button class="add" id="add" type="button">＋ Añadir producto</button>
+</section>
+
+<section class="card">
+<button class="analyze" id="analyze" type="button">ANALIZAR EVENTO</button>
+</section>
+
+<section class="card result" id="result">
+<div id="verdict" class="verdict"></div>
+<div class="kpis">
+<div class="kpi"><small>Inversión total</small><strong id="investment">$0</strong></div>
+<div class="kpi"><small>Ventas</small><strong id="potential">$0</strong></div>
+<div class="kpi"><small>Ganancia</small><strong id="profit">$0</strong></div>
+<div class="kpi"><small>Margen</small><strong id="margin">0%</strong></div>
+<div class="kpi"><small>Punto de equilibrio</small><strong id="break">$0</strong></div>
+<div class="kpi"><small>Unidades planificadas</small><strong id="units">0</strong></div>
+</div>
+<p class="note" id="advice"></p>
+
+<div class="scenario">
+<h2>🎯 ¿Cuánto necesitas vender?</h2>
+<div class="scenario-row"><span>Para recuperar gastos del evento</span><strong id="breakUnits">—</strong></div>
+<div class="scenario-row"><span>Si vendes 50% de lo planificado</span><strong id="halfProfit">—</strong></div>
+<div class="scenario-row"><span>Si vendes 75% de lo planificado</span><strong id="threeQuarterProfit">—</strong></div>
+<div class="scenario-row"><span>Si vendes 100% de lo planificado</span><strong id="fullProfit">—</strong></div>
+</div>
+</section>
+
+<div class="footer">MVP de prueba. Las cifras son estimaciones y no sustituyen contabilidad profesional.</div>
+</main>
+
+<script>
+const $=x=>document.getElementById(x),
+money=x=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(x||0),
+num=id=>parseFloat($(id).value)||0;
+
+function addProduct(name='',qty='',cost='',price=''){
+ const d=document.createElement('div');
+ d.className='product';
+ d.innerHTML='<div class="top"><b>Producto</b><button class="remove" type="button">Eliminar</button></div>'+
+ '<div class="pgrid"><input class="pn" placeholder="Pumpkin Latte" value="'+name+'">'+
+ '<input class="pq" type="number" inputmode="numeric" placeholder="Cant." value="'+qty+'">'+
+ '<input class="pc" type="number" inputmode="decimal" placeholder="Costo" value="'+cost+'">'+
+ '<input class="pp" type="number" inputmode="decimal" placeholder="Precio" value="'+price+'"></div>';
+ d.querySelector('.remove').onclick=()=>d.remove();
+ $('products').appendChild(d);
+}
+
+$('add').onclick=()=>addProduct();
+
+function profitForFraction(fraction, fixedCosts, rows){
+ let revenue=0, variable=0;
+ rows.forEach(r=>{
+   let q=r.q*fraction;
+   revenue+=q*r.price;
+   variable+=q*r.cost;
+ });
+ return revenue-variable-fixedCosts;
+}
+
+$('analyze').onclick=()=>{
+ let rows=[], productCost=0, potential=0, units=0;
+ document.querySelectorAll('.product').forEach(p=>{
+   let q=+p.querySelector('.pq').value||0,
+       c=+p.querySelector('.pc').value||0,
+       pr=+p.querySelector('.pp').value||0;
+   rows.push({q,cost:c,price:pr});
+   productCost+=q*c;
+   potential+=q*pr;
+   units+=q;
+ });
+
+ const fixedCosts=num('fee')+num('gas')+num('other');
+ const plannedContribution=potential-productCost;
+ const investment=fixedCosts+productCost;
+ const sales=num('sales')||potential;
+ const profit=sales-investment;
+ const margin=sales?profit/sales:0;
+
+ // Break-even based on contribution margin, not simply total investment.
+ let breakSales=0, breakUnits=0;
+ if(plannedContribution>0 && potential>0){
+   const cmRatio=plannedContribution/potential;
+   breakSales=fixedCosts/cmRatio;
+   const avgPrice=units?potential/units:0;
+   breakUnits=avgPrice>0?Math.ceil(breakSales/avgPrice):0;
+ } else if(fixedCosts===0){
+   breakSales=0; breakUnits=0;
+ } else {
+   breakSales=Infinity; breakUnits=Infinity;
+ }
+
+ let cls='red',txt='🔴 NO RECOMENDADO',
+     adv='Con estas cantidades no recuperarías la inversión. Ajusta cantidades, precios o gastos antes de comprometerte.';
+ if(profit>0 && margin>=.35){
+   cls='green';txt='🟢 VALE LA PENA';
+   adv='El evento muestra una ganancia saludable. Ahora puedes usar los escenarios para decidir cuánto producir.';
+ } else if(profit>0){
+   cls='yellow';txt='🟡 REVISAR';
+   adv='Hay ganancia, pero el margen es bajo. Prueba distintos precios o cantidades antes de comprometerte.';
+ } else if(breakUnits!==Infinity && breakUnits>units){
+   adv='La inversión fija es alta frente a las cantidades planificadas. Mira cuántas unidades necesitas vender para llegar al punto de equilibrio.';
+ }
+
+ $('verdict').className='verdict '+cls;
+ $('verdict').textContent=txt;
+ $('investment').textContent=money(investment);
+ $('potential').textContent=money(sales);
+ $('profit').textContent=money(profit);
+ $('margin').textContent=(margin*100).toFixed(1)+'%';
+ $('break').textContent=breakSales===Infinity?'No alcanzable':money(breakSales);
+ $('units').textContent=units;
+ $('advice').textContent=adv;
+
+ $('breakUnits').textContent=breakUnits===Infinity?'No alcanzable':(breakUnits+' unidades aprox. / mezcla actual');
+
+ const p50=profitForFraction(.5,fixedCosts,rows);
+ const p75=profitForFraction(.75,fixedCosts,rows);
+ const p100=profitForFraction(1,fixedCosts,rows);
+ $('halfProfit').textContent=money(p50);
+ $('threeQuarterProfit').textContent=money(p75);
+ $('fullProfit').textContent=money(p100);
+
+ ['halfProfit','threeQuarterProfit','fullProfit'].forEach(id=>{
+   const el=$(id);
+   el.className=(parseFloat(el.textContent.replace(/[^0-9.-]/g,''))>=0)?'goodtext':'badtext';
+ });
+
+ $('result').classList.add('show');
+ $('result').scrollIntoView({behavior:'smooth'});
+};
+
+addProduct();
+</script>
+</body>
+</html>
